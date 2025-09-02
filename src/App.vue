@@ -22,6 +22,8 @@ import {
 const fileList = ref([])
 const invoices = ref([])
 
+const formatNumber = (num) => Number(num || 0).toFixed(2)
+
 const readFileContent = (file) => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader()
@@ -49,10 +51,10 @@ const readFileContent = (file) => {
           numeroControl: invoiceData.identificacion.numeroControl || '',
           nit: invoiceData.emisor.nit || '',
           nombre: invoiceData.emisor.nombre || '',
-          ventaExenta: totalTributos,
-          subTotal: invoiceData.resumen.subTotal || 0,
-          iva: invoiceData.resumen.tributos.find(trib => trib.codigo === "20")?.valor || 0,
-          total: invoiceData.resumen.totalPagar || 0
+          ventaExenta: formatNumber(totalTributos),
+          subTotal: formatNumber(invoiceData.resumen.subTotal),
+          iva: formatNumber(invoiceData.resumen.tributos.find(trib => trib.codigo === "20")?.valor),
+          total: formatNumber(invoiceData.resumen.totalPagar)
         })
       } catch (error) {
         reject(`Error al parsear ${file.name}: ${error.message}`)
@@ -96,7 +98,10 @@ const handleTransform = async () => {
   }
 }
 
-
+const cleanInvoices = () => {
+  invoices.value = []
+  fileList.value = []
+}
 </script>
 
 <template>
@@ -130,9 +135,14 @@ const handleTransform = async () => {
               </n-upload-dragger>
             </n-upload>
 
-            <n-button type="primary" size="large" @click="handleTransform">
-              Transformar
-            </n-button>
+            <n-space justify="center">
+              <n-button type="primary" size="large" @click="handleTransform">
+                Transformar
+              </n-button>
+              <n-button v-if="fileList.length" type="error" size="large" @click="cleanInvoices">
+                Limpiar
+              </n-button>
+            </n-space>
           </n-space>
         </n-card>
       </n-layout-content>
