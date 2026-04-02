@@ -58,6 +58,8 @@ const readFileContent = (file) => {
           // Factura de venta
           result = {
             fecha: formattedDate,
+            claseDocumento: '4',
+            tipoDocumento: '01',
             codigoGeneracion: invoiceData.identificacion.codigoGeneracion || '',
             selloRecibido: invoiceData.selloRecibido || '',
             numeroControl: invoiceData.identificacion.numeroControl || '',
@@ -71,6 +73,8 @@ const readFileContent = (file) => {
           // CCF de venta
           result = {
             fecha: formattedDate,
+            claseDocumento: '4',
+            tipoDocumento: '03',
             codigoGeneracion: invoiceData.identificacion.codigoGeneracion || '',
             selloRecibido: invoiceData.selloRecibido || '',
             numeroControl: invoiceData.identificacion.numeroControl || '',
@@ -83,15 +87,20 @@ const readFileContent = (file) => {
           }
         } else if (documentSelected.value === '03') {
           // Compras
+          const ivaPerci1Value = Number(invoiceData.resumen.ivaPerci1 || 0)
           result = {
             fecha: formattedDate,
+            claseDocumento: '4',
+            tipoDocumento: '03',
             numeroControl: invoiceData.identificacion.numeroControl || '',
             nit: invoiceData.emisor.nit || '',
             nombre: invoiceData.emisor.nombre || '',
             ventaExenta: formatNumber(totalTributos),
             subTotal: formatNumber(invoiceData.resumen.subTotal),
             iva: formatNumber(invoiceData.resumen.tributos.find(trib => trib.codigo === "20")?.valor),
-            total: formatNumber(invoiceData.resumen.totalPagar)
+            total: formatNumber(invoiceData.resumen.totalPagar),
+            ivaPercibido: formatNumber(invoiceData.resumen.ivaPerci1),
+            selloRecibido: ivaPerci1Value !== 0 ? (invoiceData.selloRecibido || '') : '',
           }
         }
 
