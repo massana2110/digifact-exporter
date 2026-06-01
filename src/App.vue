@@ -27,9 +27,21 @@ const options = [
   {label: 'Factura de Venta', value: '01'},
   {label: 'Comprobante de credito fiscal de Venta', value: '02'},
   {label: 'Compras', value: '03'},
+  {label: 'Comprobante de retencion', value: '04'},
+  {label: 'Comprobante de liquidacion', value: '05'},
+  {label: 'Factura sujeto excluido', value: '06'},
 ]
 
 const formatNumber = (num) => Number(num || 0).toFixed(2)
+
+const exportSettingsByDocument = {
+  '01': {sheetName: 'Facturas venta', fileName: 'facturas_venta.xlsx'},
+  '02': {sheetName: 'CCF venta', fileName: 'ccf_venta.xlsx'},
+  '03': {sheetName: 'Compras', fileName: 'compras.xlsx'},
+  '04': {sheetName: 'Comprobante retencion', fileName: 'comprobante_retencion.xlsx'},
+  '05': {sheetName: 'Comprobante liquidacion', fileName: 'comprobante_liquidacion.xlsx'},
+  '06': {sheetName: 'Factura sujeto excluido', fileName: 'factura_sujeto_excluido.xlsx'},
+}
 
 const readFileContent = (file) => {
   return new Promise((resolve, reject) => {
@@ -39,7 +51,7 @@ const readFileContent = (file) => {
       try {
         const invoiceData = JSON.parse(event.target.result)
         let result = {}
-        const totalTributos = invoiceData.resumen.tributos
+        const totalTributos = invoiceData.resumen?.tributos
             ? invoiceData.resumen.tributos.reduce((sum, tributo) => {
               // Excluir el IVA (código "20") como mencionaste
               if (tributo.codigo !== "20") {
@@ -102,6 +114,42 @@ const readFileContent = (file) => {
             ivaPercibido: formatNumber(invoiceData.resumen.ivaPerci1),
             selloRecibido: ivaPerci1Value !== 0 ? (invoiceData.selloRecibido || '') : '',
           }
+        } else if (documentSelected.value === '04') {
+          // Comprobante de retencion
+          const cuerpoDocumento = Array.isArray(invoiceData.cuerpoDocumento) ? invoiceData.cuerpoDocumento : []
+          result = cuerpoDocumento.map((item) => ({
+            nit: invoiceData.emisor?.nit || '',
+            fecha: formattedDate,
+            tipoDocumento: '07',
+            selloRecepcion: invoiceData.selloRecibido || '',
+            numeroControl: invoiceData.identificacion?.numeroControl || '',
+            montoSujetoRetencion: formatNumber(item.montoSujetoGrav),
+            montoRetencion: formatNumber(item.ivaRetenido),
+          }))
+        } else if (documentSelected.value === '05') {
+          // Comprobante de liquidacion
+          result = {
+            'Nit agente (emisor)': invoiceData.emisor?.nit || '',
+            'Fecha': formattedDate,
+            'Sello de recepción': invoiceData.selloRecibido || '',
+            'Numero de control DTE': invoiceData.identificacion?.numeroControl || '',
+            'Monto sujeto': formatNumber(invoiceData.cuerpoDocumento?.montoSujetoPercepcion),
+            'Monto anticipo a cuenta 2%': formatNumber(invoiceData.cuerpoDocumento?.ivaPercibido),
+          }
+        } else if (documentSelected.value === '06') {
+          // Factura sujeto excluido
+          const numeroDocumento = invoiceData.sujetoExcluido?.numDocumento || ''
+          const documentDigits = numeroDocumento.replace(/\D/g, '')
+          result = {
+            'Tipo de documento': documentDigits.length === 9 ? '2' : '1',
+            'Numero de documento': numeroDocumento,
+            'Nombre de proveedor (Receptor)': invoiceData.sujetoExcluido?.nombre || '',
+            'Fecha de emisión': formattedDate,
+            'Sello de recepción': invoiceData.selloRecibido || invoiceData.firmaElectronica?.selloRecibido || '',
+            'Numero de documento DTE': invoiceData.identificacion?.numeroControl || '',
+            'Monto de compra (Subtotal)': formatNumber(invoiceData.resumen?.subTotal),
+            'Retención 10%': formatNumber(invoiceData.resumen?.reteRenta),
+          }
         }
 
         resolve(result)
@@ -132,7 +180,11 @@ const handleTransform = async () => {
     for (const file of fileList.value) {
       try {
         const datosFactura = await readFileContent(file)
-        invoices.value.push(datosFactura)
+        if (Array.isArray(datosFactura)) {
+          invoices.value.push(...datosFactura)
+        } else {
+          invoices.value.push(datosFactura)
+        }
       } catch (error) {
         console.error(error)
       }
@@ -141,10 +193,9 @@ const handleTransform = async () => {
     if (invoices.value.length > 0) {
       const worksheet = XLSX.utils.json_to_sheet(invoices.value)
       const workbook = XLSX.utils.book_new()
-      XLSX.utils.book_append_sheet(workbook, worksheet, "Compras")
-      const fileName = documentSelected.value === '01' ? 'facturas_venta.xlsx' :
-        documentSelected.value === '02' ? 'ccf_venta.xlsx' : 'compras.xlsx'
-      XLSX.writeFile(workbook, fileName)
+      const exportSettings = exportSettingsByDocument[documentSelected.value]
+      XLSX.utils.book_append_sheet(workbook, worksheet, exportSettings.sheetName)
+      XLSX.writeFile(workbook, exportSettings.fileName)
     } else {
       alert("No se pudieron procesar los archivos correctamente.")
     }
