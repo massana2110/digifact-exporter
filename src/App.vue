@@ -122,6 +122,7 @@ const readFileContent = (file) => {
             fecha: formattedDate,
             tipoDocumento: '07',
             selloRecepcion: invoiceData.selloRecibido || '',
+            codigoGeneracion: invoiceData.identificacion?.codigoGeneracion || '',
             numeroControl: invoiceData.identificacion?.numeroControl || '',
             montoSujetoRetencion: formatNumber(item.montoSujetoGrav),
             montoRetencion: formatNumber(item.ivaRetenido),
